@@ -1,7 +1,7 @@
 """
 NetBox Oxidized Plugin
 
-TODO: Add plugin description here.
+Displays device configuration backups from Oxidized on NetBox device detail pages.
 """
 
 from netbox.plugins import PluginConfig
@@ -13,26 +13,25 @@ class OxidizedConfig(PluginConfig):
     """Plugin configuration for NetBox Oxidized integration."""
 
     name = "netbox_oxidized"
-    verbose_name = "Oxidized"
-    description = "TODO: Add description"
+    verbose_name = "NetBox Oxidized"
+    description = "Display Oxidized configuration backups in NetBox device views"
     version = __version__
-    author = "sieteunoseis"
+    author = "Jeremy Worden"
     author_email = "jeremy.worden@gmail.com"
     base_url = "oxidized"
     min_version = "4.0.0"
 
-    # Required settings - plugin won't load without these
     required_settings = []
 
-    # Default configuration values
     default_settings = {
-        # TODO: Add your plugin settings here
-        # Example:
-        # "api_url": "",
-        # "api_token": "",
+        "oxidized_url": "",
+        "oxidized_external_url": "",
         "timeout": 30,
         "cache_timeout": 300,
-        "verify_ssl": True,
+        "verify_ssl": False,
+        # Device filter - empty lists mean show for all
+        "device_roles": [],
+        "manufacturers": [],
     }
 
 

@@ -1,12 +1,12 @@
 {% extends 'generic/object.html' %}
 {% load helpers %}
 
-{% block title %}${PLUGIN_NAME^} Settings{% endblock %}
+{% block title %}Oxidized Settings{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-6">
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header">
                 <h5 class="card-title mb-0">
                     <i class="mdi mdi-cog"></i> Configuration Status
@@ -14,17 +14,73 @@
             </div>
             <div class="card-body">
                 {% if configured %}
-                <div class="alert alert-success">
+                <div class="alert alert-success mb-3">
                     <i class="mdi mdi-check-circle"></i> Plugin is configured
                 </div>
+                <table class="table table-sm">
+                    <tr>
+                        <th>Oxidized URL</th>
+                        <td><code>{{ config.oxidized_url }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>External URL</th>
+                        <td>
+                            {% if config.oxidized_external_url %}
+                            <a href="{{ config.oxidized_external_url }}" target="_blank">{{ config.oxidized_external_url }}</a>
+                            {% else %}
+                            <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Timeout</th>
+                        <td>{{ config.timeout }}s</td>
+                    </tr>
+                    <tr>
+                        <th>Cache Timeout</th>
+                        <td>{{ config.cache_timeout }}s</td>
+                    </tr>
+                    <tr>
+                        <th>SSL Verification</th>
+                        <td>{{ config.verify_ssl|yesno:"Enabled,Disabled" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Device Roles</th>
+                        <td>
+                            {% if config.device_roles %}
+                            {% for role in config.device_roles %}<span class="badge text-bg-primary me-1">{{ role }}</span>{% endfor %}
+                            {% else %}
+                            <span class="text-muted">All roles</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Manufacturers</th>
+                        <td>
+                            {% if config.manufacturers %}
+                            {% for mfg in config.manufacturers %}<span class="badge text-bg-primary me-1">{{ mfg }}</span>{% endfor %}
+                            {% else %}
+                            <span class="text-muted">All manufacturers</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+
+                <button id="test-btn" class="btn btn-primary" onclick="testConnection()">
+                    <i class="mdi mdi-connection"></i> Test Connection
+                </button>
+                <div id="test-result" class="mt-2"></div>
                 {% else %}
                 <div class="alert alert-warning">
                     <i class="mdi mdi-alert"></i> Plugin is not configured
                 </div>
-                <p>Add configuration to your <code>plugins.py</code>:</p>
+                <p>Add configuration to your <code>configuration/plugins.py</code>:</p>
                 <pre><code>PLUGINS_CONFIG = {
-    "${PACKAGE_NAME}": {
-        # Add your settings here
+    "netbox_oxidized": {
+        "oxidized_url": "http://oxidized:8888",
+        "oxidized_external_url": "https://oxidized.example.com",
+        "device_roles": ["voice-gateway"],
+        "manufacturers": ["cisco"],
     }
 }</code></pre>
                 {% endif %}
@@ -32,4 +88,37 @@
         </div>
     </div>
 </div>
+
+<script>
+function testConnection() {
+    const btn = document.getElementById('test-btn');
+    const result = document.getElementById('test-result');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testing...';
+    result.innerHTML = '';
+
+    fetch("{% url 'plugins:netbox_oxidized:test_connection' %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            result.innerHTML = '<div class="alert alert-success"><i class="mdi mdi-check-circle"></i> ' + data.message + '</div>';
+        } else {
+            result.innerHTML = '<div class="alert alert-danger"><i class="mdi mdi-alert-circle"></i> ' + data.error + '</div>';
+        }
+    })
+    .catch(error => {
+        result.innerHTML = '<div class="alert alert-danger"><i class="mdi mdi-alert-circle"></i> Request failed: ' + error + '</div>';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="mdi mdi-connection"></i> Test Connection';
+    });
+}
+</script>
 {% endblock %}

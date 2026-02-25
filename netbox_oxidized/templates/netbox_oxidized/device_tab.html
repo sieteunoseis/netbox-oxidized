@@ -2,30 +2,17 @@
 {% load helpers %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        {% if error %}
-        <div class="alert alert-warning">
-            <i class="mdi mdi-alert"></i> {{ error }}
-        </div>
-        {% else %}
-        <div class="card mb-3">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="mdi mdi-information"></i> Data
-                    {% if results.cached %}
-                    <span class="badge bg-secondary text-white ms-2">
-                        <i class="mdi mdi-cached"></i> Cached
-                    </span>
-                    {% endif %}
-                </h5>
+<div id="oxidized-content"
+     hx-get="{% url 'plugins:netbox_oxidized:device_content' pk=object.pk %}"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    <div class="d-flex justify-content-center align-items-center py-5">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
             </div>
-            <div class="card-body">
-                <!-- TODO: Add your content here -->
-                <p class="text-muted">No data to display. Configure the plugin and implement the client.</p>
-            </div>
+            <p class="text-muted mb-0">Loading Oxidized configuration...</p>
         </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}

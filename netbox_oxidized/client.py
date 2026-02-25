@@ -1,4 +1,4 @@
-"""API client for external service integration."""
+"""API client for Oxidized REST API integration."""
 
 import logging
 from typing import Optional
@@ -11,73 +11,117 @@ logger = logging.getLogger(__name__)
 
 
 class OxidizedClient:
-    """Client for Oxidized API with caching and error handling."""
+    """Client for Oxidized REST API with caching and error handling."""
 
     def __init__(self):
         """Initialize the client from plugin settings."""
         self.config = settings.PLUGINS_CONFIG.get("netbox_oxidized", {})
-
-        # TODO: Add your settings here
-        # self.api_url = self.config.get("api_url", "").rstrip("/")
-        # self.api_token = self.config.get("api_token", "")
+        self.base_url = self.config.get("oxidized_url", "").rstrip("/")
         self.timeout = self.config.get("timeout", 30)
         self.cache_timeout = self.config.get("cache_timeout", 300)
-        self.verify_ssl = self.config.get("verify_ssl", True)
+        self.verify_ssl = self.config.get("verify_ssl", False)
 
-    def _make_request(self, endpoint: str, params: Optional[dict] = None) -> Optional[dict]:
-        """Make authenticated request with error handling."""
-        # TODO: Implement API request
-        # url = f"{self.api_url}/{endpoint}"
-        # headers = {"Authorization": f"Bearer {self.api_token}"}
-        #
-        # try:
-        #     response = requests.get(
-        #         url,
-        #         headers=headers,
-        #         params=params,
-        #         timeout=self.timeout,
-        #         verify=self.verify_ssl,
-        #     )
-        #     response.raise_for_status()
-        #     return response.json()
-        # except requests.Timeout:
-        #     logger.error(f"API request timed out: {endpoint}")
-        #     return None
-        # except requests.RequestException as e:
-        #     logger.error(f"API request failed: {e}")
-        #     return None
-        return None
+    def _make_request(self, endpoint: str, expect_json: bool = True):
+        """Make request to Oxidized REST API.
 
-    def get_data(self, identifier: str) -> dict:
-        """Get data with caching."""
-        cache_key = f"netbox_oxidized_{identifier}"
+        Args:
+            endpoint: API endpoint path (e.g., 'nodes.json', 'node/fetch/hostname')
+            expect_json: If True, parse response as JSON. If False, return text.
+
+        Returns:
+            Parsed JSON (dict or list), text string, or None on error.
+        """
+        url = f"{self.base_url}/{endpoint}"
+
+        try:
+            response = requests.get(
+                url,
+                timeout=self.timeout,
+                verify=self.verify_ssl,
+            )
+            response.raise_for_status()
+            if expect_json:
+                return response.json()
+            return response.text
+        except requests.Timeout:
+            logger.error(f"Oxidized API request timed out: {endpoint}")
+            return None
+        except requests.RequestException as e:
+            logger.error(f"Oxidized API request failed: {e}")
+            return None
+
+    def _get_all_nodes(self) -> list:
+        """Get all nodes from /nodes.json with caching."""
+        cache_key = "netbox_oxidized_all_nodes"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        result = self._make_request("nodes.json")
+        if result and isinstance(result, list):
+            cache.set(cache_key, result, self.cache_timeout)
+            return result
+
+        return []
+
+    def get_node(self, name: str) -> dict:
+        """Get node status information by looking up in /nodes.json.
+
+        Args:
+            name: Device hostname.
+
+        Returns:
+            Dict with node info (name, model, status, last backup time) or error.
+        """
+        nodes = self._get_all_nodes()
+        for node in nodes:
+            if node.get("name") == name or node.get("full_name") == name:
+                node["cached"] = False
+                return node
+
+        return {"error": f"Node '{name}' not found in Oxidized", "cached": False}
+
+    def get_node_config(self, name: str) -> dict:
+        """Get latest configuration for a node via /node/fetch/<name>.
+
+        Args:
+            name: Device hostname.
+
+        Returns:
+            Dict with 'config' key containing the config text, or 'error' key.
+        """
+        cache_key = f"netbox_oxidized_config_{name}"
         cached = cache.get(cache_key)
         if cached:
             cached["cached"] = True
             return cached
 
-        result = self._make_request(f"data/{identifier}")
-        if result:
-            result["cached"] = False
+        config_text = self._make_request(f"node/fetch/{name}", expect_json=False)
+        if config_text is not None:
+            result = {"config": config_text, "cached": False}
             cache.set(cache_key, result, self.cache_timeout)
             return result
 
-        return {"error": "No data found", "cached": False}
+        return {"error": f"Config not found for '{name}'", "cached": False}
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test connection to API."""
-        # TODO: Implement connection test
-        # result = self._make_request("status")
-        # if result:
-        #     return True, "Connected successfully"
-        return False, "Not implemented"
+        """Test connection to Oxidized API.
+
+        Returns:
+            Tuple of (success, message).
+        """
+        result = self._make_request("nodes.json")
+        if result is not None:
+            if isinstance(result, list):
+                return True, f"Connected. Managing {len(result)} nodes."
+            return True, "Connected successfully."
+        return False, f"Failed to connect to {self.base_url}"
 
 
 def get_client() -> Optional[OxidizedClient]:
-    """Get a configured client instance."""
-    # TODO: Check if required settings are configured
-    # config = settings.PLUGINS_CONFIG.get("netbox_oxidized", {})
-    # if not config.get("api_url"):
-    #     logger.warning("Oxidized API URL not configured")
-    #     return None
+    """Get a configured client instance, or None if not configured."""
+    config = settings.PLUGINS_CONFIG.get("netbox_oxidized", {})
+    if not config.get("oxidized_url"):
+        logger.warning("Oxidized URL not configured")
+        return None
     return OxidizedClient()

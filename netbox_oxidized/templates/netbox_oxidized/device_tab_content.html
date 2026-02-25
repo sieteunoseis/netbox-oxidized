@@ -1,0 +1,108 @@
+{% load helpers %}
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        {% if error %}
+        <div class="alert alert-warning" role="alert">
+            <i class="mdi mdi-alert"></i> {{ error }}
+        </div>
+        {% else %}
+        {# Node Status Card #}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="mdi mdi-server"></i> Oxidized Node Status
+                    {% if cached %}
+                    <span class="badge text-bg-secondary ms-2">
+                        <i class="mdi mdi-cached"></i> Cached
+                    </span>
+                    {% endif %}
+                </h5>
+                {% if external_url %}
+                <a href="{{ external_url }}/node/version?node_full={{ node_info.full_name|default:object.name }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="mdi mdi-open-in-new"></i> Open in Oxidized
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Model</th>
+                                <th>Last Backup</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{{ node_info.name|default:object.name }}</td>
+                                <td>{{ node_info.model|default:"-" }}</td>
+                                <td>
+                                    {% if node_info.last %}
+                                        {% if node_info.last.end %}
+                                            {{ node_info.last.end }}
+                                        {% else %}
+                                            {{ node_info.last|default:"-" }}
+                                        {% endif %}
+                                    {% elif node_info.time %}
+                                        {{ node_info.time }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% with status=node_info.status %}
+                                    {% if status == "success" %}
+                                    <span class="badge text-bg-success">{{ status }}</span>
+                                    {% elif status == "no_connection" or status == "timeout" %}
+                                    <span class="badge text-bg-danger">{{ status }}</span>
+                                    {% elif status == "never" %}
+                                    <span class="badge text-bg-warning">{{ status }}</span>
+                                    {% else %}
+                                    <span class="badge text-bg-secondary">{{ status|default:"unknown" }}</span>
+                                    {% endif %}
+                                    {% endwith %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# Configuration Card #}
+        {% if config_text %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="mdi mdi-file-document-outline"></i> Latest Configuration
+                </h5>
+                <button id="copy-config-btn" class="btn btn-sm btn-outline-secondary" onclick="copyConfig()">
+                    <i class="mdi mdi-content-copy"></i> Copy
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <pre id="config-pre" class="mb-0 p-3" style="max-height: 600px; overflow: auto; font-size: 0.8rem;"><code>{{ config_text }}</code></pre>
+                <script>
+                function copyConfig() {
+                    const text = document.getElementById('config-pre').innerText;
+                    navigator.clipboard.writeText(text).then(() => {
+                        const btn = document.getElementById('copy-config-btn');
+                        btn.innerHTML = '<i class="mdi mdi-check"></i> Copied';
+                        setTimeout(() => { btn.innerHTML = '<i class="mdi mdi-content-copy"></i> Copy'; }, 2000);
+                    });
+                }
+                </script>
+            </div>
+        </div>
+        {% elif config_error %}
+        <div class="alert alert-info" role="alert">
+            <i class="mdi mdi-information-outline"></i> {{ config_error }}
+        </div>
+        {% endif %}
+
+        {% endif %}
+    </div>
+</div>
