@@ -1,8 +1,6 @@
 # NetBox Oxidized Plugin
 
-<img src="docs/icon.png" alt="NetBox Oxidized Plugin" width="100" align="right">
-
-A NetBox plugin for Oxidized integration.
+A NetBox plugin that displays [Oxidized](https://github.com/ytti/oxidized) device configuration backups directly in Device detail pages.
 
 ![NetBox Version](https://img.shields.io/badge/NetBox-4.0+-blue)
 ![Python Version](https://img.shields.io/badge/Python-3.10+-green)
@@ -11,14 +9,19 @@ A NetBox plugin for Oxidized integration.
 
 ## Features
 
-- **Device Tab** - Adds a "Oxidized" tab to Device detail pages
-- **VM Tab** - Same functionality for Virtual Machines
-- **Caching** - API responses are cached to improve performance
+- **Oxidized Tab** - Adds an "Oxidized" tab to Device detail pages
+- **Config Display** - Shows the latest device configuration as code with copy button
+- **Node Status** - Displays backup status, model, and last backup time
+- **Link to Oxidized** - Direct link to the device's version history in Oxidized
+- **Device Filtering** - Configurable by device role and manufacturer slugs
+- **HTMX Loading** - Async content loading without blocking the page
+- **Caching** - API responses cached to reduce load on Oxidized
 
 ## Requirements
 
 - NetBox 4.0 or higher
 - Python 3.10+
+- Oxidized with REST API enabled
 
 ## Installation
 
@@ -26,14 +29,6 @@ A NetBox plugin for Oxidized integration.
 
 ```bash
 pip install netbox-oxidized
-```
-
-### From Source
-
-```bash
-git clone https://github.com/sieteunoseis/netbox-oxidized.git
-cd netbox-oxidized
-pip install -e .
 ```
 
 ### Docker Installation
@@ -58,29 +53,43 @@ PLUGINS = [
 
 PLUGINS_CONFIG = {
     'netbox_oxidized': {
-        # TODO: Add your settings
+        # Required: Oxidized REST API URL
+        'oxidized_url': 'http://oxidized:8888',
+        # Optional: External URL for browser links (if behind reverse proxy)
+        'oxidized_external_url': 'https://oxidized.example.com',
+        # API timeout in seconds
         'timeout': 30,
+        # Cache duration in seconds
         'cache_timeout': 300,
-        'verify_ssl': True,
+        # SSL certificate verification
+        'verify_ssl': False,
+        # Device role slugs to show tab for (empty = all)
+        'device_roles': ['voice-gateway'],
+        # Manufacturer slugs to show tab for (empty = all)
+        'manufacturers': ['cisco'],
     }
 }
 ```
+
+See the [Configuration wiki](https://github.com/sieteunoseis/netbox-oxidized/wiki/Configuration) for full details.
 
 ## Usage
 
 Once installed and configured:
 
-1. Navigate to any Device in NetBox
+1. Navigate to any Device in NetBox that matches your filter criteria
 2. Click the **Oxidized** tab
-3. View data from Oxidized
+3. View the node status and latest configuration
+4. Use the **Copy** button to copy the config
+5. Click **Open in Oxidized** to view version history
 
-## Troubleshooting
+## Documentation
 
-### Connection errors
+Full documentation is available on the [Wiki](https://github.com/sieteunoseis/netbox-oxidized/wiki):
 
-- Verify API URL is accessible from NetBox container
-- Check that credentials are correct
-- For self-signed certificates, set `verify_ssl: False`
+- [Installation](https://github.com/sieteunoseis/netbox-oxidized/wiki/Installation)
+- [Configuration](https://github.com/sieteunoseis/netbox-oxidized/wiki/Configuration)
+- [Troubleshooting](https://github.com/sieteunoseis/netbox-oxidized/wiki/Troubleshooting)
 
 ## Development
 
