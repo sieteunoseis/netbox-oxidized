@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netbox-oxidized"
-version = "0.1.0"
+version = "0.2.0"
 description = "NetBox plugin for oxidized integration"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -26,6 +26,7 @@ keywords = ["netbox", "netbox-plugin", "oxidized"]
 
 dependencies = [
     "requests>=2.25.0",
+    "ciscoconfaudit>=0.2.0",
 ]
 
 [project.optional-dependencies]

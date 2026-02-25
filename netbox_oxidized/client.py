@@ -104,6 +104,48 @@ class OxidizedClient:
 
         return {"error": f"Config not found for '{name}'", "cached": False}
 
+    def search_configs(self, query: str) -> list[dict]:
+        """Search all node configurations for a term.
+
+        Args:
+            query: Search term to look for in configs.
+
+        Returns:
+            List of dicts with node name and matching lines.
+        """
+        nodes = self._get_all_nodes()
+        results = []
+
+        for node in nodes:
+            name = node.get("name", "")
+            if not name:
+                continue
+
+            config_data = self.get_node_config(name)
+            config_text = config_data.get("config", "")
+            if not config_text:
+                continue
+
+            # Find matching lines
+            matching_lines = []
+            for i, line in enumerate(config_text.splitlines(), 1):
+                if query.lower() in line.lower():
+                    matching_lines.append({"number": i, "text": line})
+
+            if matching_lines:
+                results.append(
+                    {
+                        "name": name,
+                        "full_name": node.get("full_name", name),
+                        "model": node.get("model", ""),
+                        "status": node.get("status", ""),
+                        "match_count": len(matching_lines),
+                        "matching_lines": matching_lines[:10],  # Limit to 10 lines per device
+                    }
+                )
+
+        return results
+
     def test_connection(self) -> tuple[bool, str]:
         """Test connection to Oxidized API.
 

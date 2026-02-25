@@ -6,7 +6,7 @@ Displays device configuration backups from Oxidized on NetBox device detail page
 
 from netbox.plugins import PluginConfig
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 class OxidizedConfig(PluginConfig):
