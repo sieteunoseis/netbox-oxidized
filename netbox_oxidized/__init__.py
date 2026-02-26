@@ -20,6 +20,7 @@ class OxidizedConfig(PluginConfig):
     author_email = "jeremy.worden@gmail.com"
     base_url = "oxidized"
     min_version = "4.0.0"
+    max_version = "5.99"
 
     required_settings = []
 

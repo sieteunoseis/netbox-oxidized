@@ -39,8 +39,9 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/sieteunoseis/netbox-oxidized"
 Repository = "https://github.com/sieteunoseis/netbox-oxidized"
+Issues = "https://github.com/sieteunoseis/netbox-oxidized/issues"
 Documentation = "https://github.com/sieteunoseis/netbox-oxidized/wiki"
-Changelog = "https://github.com/sieteunoseis/netbox-oxidized/blob/main/CHANGELOG.md"
+Changelog = "https://github.com/sieteunoseis/netbox-oxidized/blob/master/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["netbox_oxidized*"]
