@@ -295,9 +295,8 @@ class ConfigAuditView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 config_text = config_data.get("config", "")
 
                 if config_text:
-                    from rich.console import Console
-
                     from ciscoconfaudit import CiscoConfAudit
+                    from rich.console import Console
 
                     # Use a wide console to avoid truncation of Status column
                     console = Console(record=True, width=160)
@@ -320,9 +319,7 @@ class ConfigAuditView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     # Fix unescaped angle brackets in check names
                     # (e.g. <domain>, <timezone>) that browser treats as HTML tags.
                     # Escape all < that are NOT part of real HTML tags (span, pre, code, /, br).
-                    audit_html = re.sub(
-                        r"<(?!/?(span|pre|code|br)\b)", "&lt;", audit_html
-                    )
+                    audit_html = re.sub(r"<(?!/?(span|pre|code|br)\b)", "&lt;", audit_html)
                     # Fix dark mode: replace hardcoded light-theme colors
                     audit_html = audit_html.replace(
                         "background-color: #ffffff", "background-color: transparent"
