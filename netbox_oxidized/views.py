@@ -2,6 +2,8 @@
 
 import difflib
 import logging
+import json
+
 
 from dcim.models import Device
 from django.conf import settings
@@ -12,9 +14,14 @@ from django.template.loader import render_to_string
 from django.views import View
 from netbox.views import generic
 from utilities.views import ViewTab, register_model_view
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.views.generic import TemplateView
 
 from .client import get_client
 from .widgets import get_backup_status_context
+from .models import OxidizedStats
+
 
 logger = logging.getLogger(__name__)
 
@@ -374,3 +381,99 @@ class WidgetBackupStatusContentView(LoginRequiredMixin, View):
                 request=request,
             )
         )
+class OxidizedStatsDashboardView(PermissionRequiredMixin, TemplateView):
+    """
+    Main dashboard stats Oxidized.
+
+    URL: /plugins/oxidized/stats/
+    Template: netbox_oxidized/stats_dashboard.html
+    """
+
+    permission_required = "netbox_oxidized.view_oxidizedstats"
+    template_name = "netbox_oxidized/stats_dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+
+        # Last snapshot
+        latest: OxidizedStats | None = OxidizedStats.objects.first()
+        ctx["latest"] = latest
+
+        if latest:
+            ctx["groups_data_json"] = json.dumps(latest.groups_data)
+            ctx["models_data_json"] = json.dumps(latest.models_data)
+            ctx["top_devices_json"] = json.dumps(latest.top_devices_data)
+
+            # Last N snapshots for graph
+            history_qs = OxidizedStats.objects.order_by("collected_at").values(
+                "collected_at",
+                "devices_backed_up",
+                "config_lines_total",
+                "backup_size_bytes",
+                "failed_devices",
+            )[:200]
+            ctx["history_json"] = json.dumps(
+                [
+                    {
+                        "ts": s["collected_at"].strftime("%Y-%m-%dT%H:%M:%S"),
+                        "backed": s["devices_backed_up"],
+                        "lines": s["config_lines_total"],
+                        "size": s["backup_size_bytes"],
+                        "failed": s["failed_devices"],
+                    }
+                    for s in history_qs
+                ]
+            )
+        else:
+            ctx["groups_data_json"] = "[]"
+            ctx["models_data_json"] = "[]"
+            ctx["top_devices_json"] = "[]"
+            ctx["history_json"] = "[]"
+
+        # Count saved snapshot
+        ctx["snapshot_count"] = OxidizedStats.objects.count()
+
+        return ctx
+
+
+class StatsCollectView(PermissionRequiredMixin, View):
+    """
+    POST → collect stats and return JSON. For "Update now" button.
+    """
+
+    permission_required = "netbox_oxidized.add_oxidizedstats"
+
+    def get(self, request, *args, **kwargs):
+        """GET — just collect info."""
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from .jobs import collect_stats_now
+
+        wants_json = "application/json" in request.META.get("HTTP_ACCEPT", "")
+
+        try:
+            obj = collect_stats_now()
+            if wants_json:
+                return JsonResponse(
+                    {
+                        "status": "ok",
+                        "collected_at": obj.collected_at.isoformat(),
+                        "devices_backed_up": obj.devices_backed_up,
+                        "config_lines_total": obj.config_lines_total,
+                        "backup_size_bytes": obj.backup_size_bytes,
+                        "collection_duration_ms": obj.collection_duration_ms,
+                    }
+                )
+            messages.success(
+                request,
+                f"Stats update: {obj.devices_backed_up} device, "
+                f"{obj.config_lines_total} rows, {obj.backup_size_bytes // 1024} кБ.",
+            )
+        except Exception as exc:
+            logger.exception("Error manual update stats")
+            if wants_json:
+                return JsonResponse({"status": "error", "detail": str(exc)}, status=500)
+            messages.error(request, f"Error colect stats: {exc}")
+
+        return redirect("plugins:netbox_oxidized:stats_dashboard")

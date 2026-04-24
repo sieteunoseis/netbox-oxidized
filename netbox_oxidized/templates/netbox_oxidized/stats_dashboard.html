@@ -1,0 +1,460 @@
+{% extends 'base/layout.html' %}
+{% load humanize %}
+
+{% block title %}Oxidized — Statistics{% endblock %}
+
+{% block content %}
+
+<style>
+    /*  Color  */
+    :root {
+        --ox-green:   #2ecc71;
+        --ox-blue:    #3498db;
+        --ox-orange:  #e67e22;
+        --ox-red:     #e74c3c;
+        --ox-purple:  #9b59b6;
+        --ox-teal:    #1abc9c;
+        --ox-yellow:  #f1c40f;
+        --ox-gray:    #95a5a6;
+    }
+
+    /*  Stats card  */
+    .ox-stat-card {
+        border-radius: 8px;
+        padding: 1.4rem 1.6rem;
+        display: flex;
+        flex-direction: column;
+        gap: .3rem;
+        border: 1px solid rgba(0,0,0,.08);
+        background: var(--bs-body-bg, #fff);
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        transition: transform .15s, box-shadow .15s;
+    }
+    .ox-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+    .ox-stat-card .ox-label  { font-size: .78rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .05em; color: var(--bs-secondary-color, #6c757d); }
+    .ox-stat-card .ox-value  { font-size: 2.4rem; font-weight: 700; line-height: 1.1; }
+    .ox-stat-card .ox-sub    { font-size: .82rem; color: var(--bs-secondary-color, #6c757d); }
+    .ox-green  { border-left: 4px solid var(--ox-green);  }  .ox-green  .ox-value { color: var(--ox-green); }
+    .ox-blue   { border-left: 4px solid var(--ox-blue);   }  .ox-blue   .ox-value { color: var(--ox-blue);  }
+    .ox-orange { border-left: 4px solid var(--ox-orange); }  .ox-orange .ox-value { color: var(--ox-orange);}
+    .ox-red    { border-left: 4px solid var(--ox-red);    }  .ox-red    .ox-value { color: var(--ox-red);   }
+
+    /*  Chart-containers  */
+    .ox-chart-wrap {
+        position: relative;
+        background: var(--bs-body-bg, #fff);
+        border: 1px solid rgba(0,0,0,.08);
+        border-radius: 8px;
+        padding: 1.2rem 1.4rem 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .ox-chart-wrap h6 {
+        font-size: .82rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .07em; color: var(--bs-secondary-color, #6c757d);
+        margin-bottom: .8rem;
+    }
+    .ox-pie-canvas    { max-height: 220px; }
+    .ox-bar-canvas    { max-height: 260px; }
+    .ox-line-canvas   { max-height: 160px; }
+
+    /*  Table top device  */
+    .ox-top-table th { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+    .ox-top-table td { font-size: .84rem; }
+    .ox-badge-ok     { background: var(--ox-green);  color: #fff; }
+    .ox-badge-fail   { background: var(--ox-red);    color: #fff; }
+    .ox-badge-never  { background: var(--ox-gray);   color: #fff; }
+
+    /*  Button Update  */
+    #btn-collect { min-width: 140px; }
+    #btn-collect .spinner-border { width: 1rem; height: 1rem; border-width: 2px; }
+
+    /*  «no data»  */
+    .ox-no-data {
+        text-align: center; padding: 4rem 2rem; color: var(--bs-secondary-color, #6c757d);
+    }
+    .ox-no-data i { font-size: 3rem; display: block; margin-bottom: 1rem; }
+</style>
+
+{#  Main  #}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 mb-0">
+            <i class="mdi mdi-chart-bar me-2 text-success"></i>Oxidized Statistics
+        </h1>
+        {% if latest %}
+        <small class="text-muted">
+            Last collected: {{ latest.collected_at|date:"Y-m-d H:i:s" }}
+            {% if latest.collection_duration_ms %}
+            &nbsp;·&nbsp; {{ latest.collection_duration_ms|floatformat:0 }} ms
+            {% endif %}
+            &nbsp;·&nbsp; {{ snapshot_count }} snapshot{{ snapshot_count|pluralize }}
+        </small>
+        {% endif %}
+    </div>
+
+    {# Button «Collect now» #}
+    <button id="btn-collect" class="btn btn-success btn-sm"
+            hx-post="{% url 'plugins:netbox_oxidized:stats_collect' %}"
+            hx-target="#collect-result"
+            hx-swap="innerHTML"
+            hx-indicator="#btn-collect"
+            onclick="collectNow(event)">
+        <i class="mdi mdi-refresh me-1"></i>Collect Now
+    </button>
+</div>
+
+<div id="collect-result" class="mb-3"></div>
+
+{% if not latest %}
+{#  No data  #}
+<div class="ox-no-data">
+    <i class="mdi mdi-database-off-outline"></i>
+    <p class="mb-2 fw-semibold">No statistics collected yet.</p>
+    <p class="text-muted small">Click <strong>Collect Now</strong> to gather data from Oxidized API.</p>
+</div>
+
+{% else %}
+{# Style dahsboard #}
+
+{#  1. Row Summary  #}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="ox-stat-card ox-green">
+            <span class="ox-label">Devices Backed Up</span>
+            <span class="ox-value">{{ latest.devices_backed_up }}</span>
+            <span class="ox-sub">of {{ latest.total_devices }} total</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="ox-stat-card ox-blue">
+            <span class="ox-label">Config Lines</span>
+            <span class="ox-value">{{ latest.config_lines_total|intcomma }}</span>
+            <span class="ox-sub">across all devices</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="ox-stat-card ox-orange">
+            <span class="ox-label">Backup Size</span>
+            <span class="ox-value">{{ latest.backup_size_human }}</span>
+            <span class="ox-sub">total compressed</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="ox-stat-card ox-red">
+            <span class="ox-label">Failed / Not Tried</span>
+            <span class="ox-value">{% if latest.failed_devices %}{{ latest.failed_devices }}{% else %}—{% endif %}</span>
+            <span class="ox-sub">need attention</span>
+        </div>
+    </div>
+</div>
+
+{#  2. Groups and Models  #}
+<div class="row g-3 mb-4">
+
+    {# Groups pie #}
+    <div class="col-md-6">
+        <div class="ox-chart-wrap h-100">
+            <h6>Groups</h6>
+            <div class="row align-items-center">
+                <div class="col-6">
+                    <canvas id="chartGroups" class="ox-pie-canvas"></canvas>
+                </div>
+                <div class="col-6">
+                    <div id="legendGroups" style="font-size:.8rem; max-height:220px; overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Models pie #}
+    <div class="col-md-6">
+        <div class="ox-chart-wrap h-100">
+            <h6>Models</h6>
+            <div class="row align-items-center">
+                <div class="col-6">
+                    <canvas id="chartModels" class="ox-pie-canvas"></canvas>
+                </div>
+                <div class="col-6">
+                    <div id="legendModels" style="font-size:.8rem; max-height:220px; overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{#  3. Lines by model / Size by model  #}
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="ox-chart-wrap h-100">
+            <h6>Number of Lines by Model</h6>
+            <canvas id="chartLinesModel" class="ox-pie-canvas"></canvas>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="ox-chart-wrap h-100">
+            <h6>Avg Lines by Model</h6>
+            <canvas id="chartAvgLines" class="ox-pie-canvas"></canvas>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="ox-chart-wrap h-100">
+            <h6>Config Size by Model</h6>
+            <canvas id="chartSizeModel" class="ox-pie-canvas"></canvas>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="ox-chart-wrap h-100">
+            <h6>Avg Config Size by Model</h6>
+            <canvas id="chartAvgSize" class="ox-pie-canvas"></canvas>
+        </div>
+    </div>
+</div>
+
+{#  4. Top device: Lines & Size (bar-charts)  #}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="ox-chart-wrap">
+            <h6>Number of Config Lines — Top Devices</h6>
+            <canvas id="chartTopLines" class="ox-bar-canvas"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="ox-chart-wrap">
+            <h6>Config Size — Top Devices</h6>
+            <canvas id="chartTopSize" class="ox-bar-canvas"></canvas>
+        </div>
+    </div>
+</div>
+
+{#  5. Device table  #}
+<div class="ox-chart-wrap mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Top Devices Detail</h6>
+        <input type="search" id="devSearch" class="form-control form-control-sm w-auto"
+               placeholder="Filter…" oninput="filterTable(this.value)">
+    </div>
+    <div style="max-height:400px; overflow-y:auto;">
+        <table class="table table-sm table-hover ox-top-table mb-0" id="devTable">
+            <thead class="sticky-top" style="top:0">
+            <tr>
+                <th>Device</th>
+                <th>Model</th>
+                <th>Group</th>
+                <th class="text-end">Lines</th>
+                <th class="text-end">Size</th>
+                <th>Status</th>
+                <th>Last Backup</th>
+            </tr>
+            </thead>
+            <tbody id="devTbody"></tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}{# end if latest #}
+
+{#  Chart.js   #}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+{% if latest %}
+<script>
+    /*  Data from Django  */
+    const GROUPS   = {{ groups_data_json|safe }};
+    const MODELS   = {{ models_data_json|safe }};
+    const DEVICES  = {{ top_devices_json|safe }};
+
+    /*    */
+    const PALETTE = [
+        '#3498db','#2ecc71','#e67e22','#e74c3c','#9b59b6',
+        '#1abc9c','#f1c40f','#34495e','#e91e63','#ff5722',
+        '#607d8b','#795548','#009688','#673ab7','#ff9800',
+        '#4caf50','#2196f3','#f44336','#9c27b0','#00bcd4',
+    ];
+    const color = (i) => PALETTE[i % PALETTE.length];
+
+    /*  Helper: pie  */
+    function buildPie(id, labels, values, unit='') {
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        return new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{ data: values, backgroundColor: labels.map((_,i)=>color(i)),
+                    borderWidth: 1, borderColor: 'rgba(255,255,255,.6)' }]
+            },
+            options: {
+                cutout: '60%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ` ${ctx.label}: ${ctx.formattedValue}${unit}`
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /*  Legend near pie  */
+    function buildLegend(containerId, labels, values, unit='') {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        const total = values.reduce((a,b)=>a+b,0) || 1;
+        el.innerHTML = labels.map((l,i)=>`
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <span style="width:10px;height:10px;border-radius:2px;background:${color(i)};flex-shrink:0;"></span>
+      <span class="text-truncate" style="max-width:120px" title="${l}">${l}</span>
+      <span class="ms-auto text-muted">${values[i]}${unit}</span>
+      <span class="text-muted" style="width:36px;text-align:right">${Math.round(values[i]/total*100)}%</span>
+    </div>
+  `).join('');
+    }
+
+    /*  bar-chart  */
+    function buildBarH(id, labels, values, labelStr, colorIdx=0) {
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        return new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: labelStr,
+                    data: values,
+                    backgroundColor: labels.map((_,i)=>color(i)),
+                    borderRadius: 3,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(0,0,0,.05)' }, ticks: { font: { size: 11 } } },
+                    y: { ticks: { font: { size: 10 }, callback: v => {
+                                const lbl = labels[v];
+                                return lbl && lbl.length > 28 ? lbl.slice(0,26)+'…' : lbl;
+                            }}}
+                }
+            }
+        });
+    }
+
+    /*  Format size  */
+    function fmtSize(bytes) {
+        if (bytes >= 1048576) return (bytes/1048576).toFixed(2)+' MB';
+        return (bytes/1024).toFixed(1)+' kB';
+    }
+
+    /*
+       Build graph
+        */
+    window.addEventListener('DOMContentLoaded', () => {
+
+        /*  Groups  */
+        const gLabels = GROUPS.map(g=>g.name);
+        const gCounts = GROUPS.map(g=>g.count);
+        buildPie('chartGroups', gLabels, gCounts);
+        buildLegend('legendGroups', gLabels, gCounts, ' dev');
+
+        /*  Models distribution  */
+        const mLabels = MODELS.map(m=>m.model);
+        buildPie('chartModels', mLabels, MODELS.map(m=>m.count));
+        buildLegend('legendModels', mLabels, MODELS.map(m=>m.count), ' dev');
+
+        /*  Lines by model  */
+        buildPie('chartLinesModel', mLabels, MODELS.map(m=>m.lines));
+        buildPie('chartAvgLines',   mLabels, MODELS.map(m=>m.avg_lines));
+        buildPie('chartSizeModel',  mLabels, MODELS.map(m=>Math.round(m.size_bytes/1024)));
+        buildPie('chartAvgSize',    mLabels, MODELS.map(m=>Math.round(m.avg_size_bytes/1024)));
+
+        /*  Top devices bar charts  */
+        const topN = DEVICES.slice(0, 15);
+        const topLabels = topN.map(d=>d.name);
+        buildBarH('chartTopLines', topLabels, topN.map(d=>d.lines), 'Lines');
+        buildBarH('chartTopSize',  topLabels, topN.map(d=>Math.round(d.size_bytes/1024)), 'kB');
+
+        /*  Device table  */
+        const tbody = document.getElementById('devTbody');
+        if (tbody) {
+            tbody.innerHTML = DEVICES.map(d => {
+                const badgeCls = d.status === 'success' ? 'ox-badge-ok'
+                    : d.status === 'never'   ? 'ox-badge-never'
+                        :                          'ox-badge-fail';
+                const ts = d.last_backup ? String(d.last_backup).slice(0,19) : '—';
+                return `<tr>
+        <td class="fw-semibold">${d.name}</td>
+        <td>${d.model}</td>
+        <td>${d.group || '—'}</td>
+        <td class="text-end">${d.lines.toLocaleString()}</td>
+        <td class="text-end">${fmtSize(d.size_bytes)}</td>
+        <td><span class="badge ${badgeCls}">${d.status || '?'}</span></td>
+        <td class="text-muted" style="font-size:.8rem">${ts}</td>
+      </tr>`;
+            }).join('');
+        }
+    });
+
+    /*  Search  */
+    function filterTable(q) {
+        q = q.toLowerCase();
+        document.querySelectorAll('#devTbody tr').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    }
+
+    /*  Manual collect stats  */
+    function collectNow(evt) {
+        evt.preventDefault();
+        const btn = document.getElementById('btn-collect');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border me-1" role="status"></span>Collecting…';
+
+        fetch("{% url 'plugins:netbox_oxidized:stats_collect' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Accept': 'application/json',
+            }
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    document.getElementById('collect-result').innerHTML =
+                        `<div class="alert alert-success alert-dismissible py-2 mb-0" role="alert">
+           <i class="mdi mdi-check-circle me-1"></i>
+           Collected at ${data.collected_at.replace('T',' ').slice(0,19)}
+           — ${data.devices_backed_up} devices, ${data.config_lines_total.toLocaleString()} lines.
+           <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
+         </div>`;
+                    // Reload page each 150 sec
+                    setTimeout(() => location.reload(), 150000);
+                } else {
+                    showError(data.detail || 'Unknown error');
+                }
+            })
+            .catch(e => showError(e.message))
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="mdi mdi-refresh me-1"></i>Collect Now';
+            });
+    }
+
+    function showError(msg) {
+        document.getElementById('collect-result').innerHTML =
+            `<div class="alert alert-danger alert-dismissible py-2 mb-0" role="alert">
+       <i class="mdi mdi-alert-circle me-1"></i>${msg}
+       <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
+     </div>`;
+    }
+
+    function getCookie(name) {
+        const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return v ? v[2] : '';
+    }
+</script>
+{% endif %}
+{% endblock %}

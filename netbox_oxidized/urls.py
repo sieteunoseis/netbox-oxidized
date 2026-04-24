@@ -4,6 +4,7 @@ from django.urls import path
 
 from . import views
 
+
 urlpatterns = [
     path("settings/", views.SettingsView.as_view(), name="settings"),
     path("test-connection/", views.TestConnectionView.as_view(), name="test_connection"),
@@ -12,4 +13,6 @@ urlpatterns = [
     path("audit/", views.ConfigAuditView.as_view(), name="config_audit"),
     path("device/<int:pk>/content/", views.DeviceOxidizedContentView.as_view(), name="device_content"),
     path("widget/backup-status/", views.WidgetBackupStatusContentView.as_view(), name="widget_backup_status"),
+    path("stats/",  views.OxidizedStatsDashboardView.as_view(),  name="stats_dashboard",  ),
+    path("stats/collect/",   views.StatsCollectView.as_view(),   name="stats_collect", ),
 ]
