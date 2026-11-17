@@ -79,6 +79,15 @@ PLUGINS_CONFIG = {
 }
 ```
 
+### Display Options
+
+Optional `PLUGINS_CONFIG["netbox_oxidized"]` keys that control where the plugin appears in the UI:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `tab_weight` | `9005` | Position of this plugin's tab on object pages (lower = further left). Tabs with equal weight fall back to registration order. |
+| `top_level_menu` | `True` | `True` = own top-level sidebar menu. `False` = items listed under the shared **Plugins** menu, to shorten the sidebar. |
+
 See the [Configuration wiki](https://github.com/sieteunoseis/netbox-oxidized/wiki/Configuration) for full details.
 
 ## Usage

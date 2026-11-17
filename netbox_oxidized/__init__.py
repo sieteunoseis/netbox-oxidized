@@ -6,14 +6,14 @@ Displays device configuration backups from Oxidized on NetBox device detail page
 
 from netbox.plugins import PluginConfig
 
-__version__ = "0.3.3"
+__version__ = "0.4.0"
 
 
 class OxidizedConfig(PluginConfig):
     """Plugin configuration for NetBox Oxidized integration."""
 
     name = "netbox_oxidized"
-    verbose_name = "NetBox Oxidized"
+    verbose_name = "Oxidized"
     description = "Display Oxidized configuration backups in NetBox device views"
     version = __version__
     author = "Jeremy Worden"
@@ -25,6 +25,8 @@ class OxidizedConfig(PluginConfig):
     required_settings = []
 
     default_settings = {
+        "top_level_menu": True,
+        "tab_weight": 9005,
         "oxidized_url": "",
         "oxidized_external_url": "",
         "timeout": 30,

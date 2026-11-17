@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-17
+
+### Added
+- `tab_weight` setting (default `9005`) to control where this plugin's tab sits on object pages, so tab order can be set in config instead of code
+- `top_level_menu` setting (default `True`); set `False` to list this plugin's menu items under the shared "Plugins" menu instead of its own top-level sidebar menu
+
+### Changed
+- Plugin display name shortened to "Oxidized" (was "NetBox Oxidized") so it matches the sidebar menu label
+
 ## [0.3.0] - 2026-03-09
 
 ### Added

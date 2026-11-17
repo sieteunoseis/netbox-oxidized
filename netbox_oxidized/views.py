@@ -18,6 +18,9 @@ from .widgets import get_backup_status_context
 
 logger = logging.getLogger(__name__)
 
+# Tab order on object pages; override with PLUGINS_CONFIG["netbox_oxidized"]["tab_weight"]
+TAB_WEIGHT = settings.PLUGINS_CONFIG.get("netbox_oxidized", {}).get("tab_weight", 9005)
+
 
 class SuperuserRequiredMixin(UserPassesTestMixin):
     """Restrict access to superusers only."""
@@ -56,7 +59,7 @@ class DeviceOxidizedView(generic.ObjectView):
     template_name = "netbox_oxidized/device_tab.html"
     tab = ViewTab(
         label="Oxidized",
-        weight=9005,
+        weight=TAB_WEIGHT,
         permission="dcim.view_device",
         hide_if_empty=False,
         visible=should_show_tab,
