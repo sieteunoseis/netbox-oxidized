@@ -24,8 +24,19 @@ _menu = PluginMenu(
                     link_text="Config Audit",
                     permissions=["dcim.view_device"],
                 ),
+
             ),
         ),
+        (
+           "Dashboard",
+           (
+                PluginMenuItem(
+                link="plugins:netbox_oxidized:stats_collect",
+                link_text="Statistics",
+                permissions=["netbox_oxidized.superuser_required"],
+                        ),
+                    ),
+                ),
         (
             "Settings",
             (
